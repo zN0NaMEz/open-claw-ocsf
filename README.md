@@ -77,6 +77,26 @@ pip install ff3 "psycopg[binary]" pytest
 `psycopg` is imported lazily, so everything except `connect_database()` works
 without it installed.
 
+## The ledger
+
+The vault is what makes a sanitized log reversible: without a record that a
+token was issued, `safe_decrypt` refuses it, so an in-memory stand-in turns
+every run into a one-way trip.
+
+| Backend | Use |
+| --- | --- |
+| `connect_database()` | Postgres, via `DATABASE_URL`. What production uses. |
+| `SqliteLedger()` | One file under `Data/`. Durable, but one writer, no roles, no network. |
+
+Both take the same place in `run_pipeline(conn=...)` — the engine needs no
+change, only a different connection. To stand Postgres up:
+
+```bash
+docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=x --name vault postgres:16
+export DATABASE_URL=postgresql://postgres:x@localhost:5432/postgres
+python -c "import ...; ensure_schema(connect_database())"
+```
+
 ## Design notes
 
 - **Vaultless.** The ledger stores `token`, `prefix`, `suffix_len` and
